@@ -1,5 +1,4 @@
 version: "3.8"
-
 services:
   mysql:
     image: mysql:latest
@@ -13,6 +12,12 @@ services:
       - "8000:3306"
     networks:
       - my-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
 
   redis:
     image: redis:latest
@@ -21,12 +26,18 @@ services:
       - "6379:6379"
     networks:
       - my-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
 
-  server:
+  load-balancer:
     build:
-      context: ./dockerizedCache
-      dockerfile: redis.dockerFile # Correct path
-    container_name: server-container
+      context: ./loadBalancer/mainServer
+      dockerfile: mainServer.dockerFile
+    container_name: load-balancer
     environment:
       DB_HOST: sql-container
       DB_PORT: 3306
@@ -36,7 +47,24 @@ services:
       REDIS_HOST: redis-container
       REDIS_PORT: 6379
     ports:
-      - "7000:7000"
+      - "3000:3000"
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - my-network
+
+  my-servers:
+    build:
+      context: ./loadBalancer/childServers
+      dockerfile: childServers.dockerFile
+    container_name: my-servers
+    environment:
+      DB_HOST: sql-container
+      DB_PORT: 3306
+      DB_USER: testuser
+      DB_PASSWORD: testpass
+      DB_NAME: testdb
     depends_on:
       - mysql
       - redis
