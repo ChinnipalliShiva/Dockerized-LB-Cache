@@ -6,8 +6,15 @@ const roundRobin = async (body) => {
   let currentServer = serverPorts[currentServerIndex];
   currentServerIndex = (currentServerIndex + 1) % serverPorts.length;
   try {
-    const result = await axios.get(
-      `http://localhost:${currentServer}/data`,
+    //localhost
+    // const result = await axios.post(
+    //   `http://localhost:${currentServer}/child/getUser`,
+    //   body
+    // );
+
+    //docker `my-servers`
+    const result = await axios.post(
+      `http://my-servers:${currentServer}/child/getUser`, // Docker service name
       body
     );
     console.log("✅ Data received from server:", result);
