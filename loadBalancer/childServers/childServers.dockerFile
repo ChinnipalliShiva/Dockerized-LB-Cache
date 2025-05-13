@@ -4,11 +4,11 @@ FROM node:latest
 WORKDIR /childServer
 
 # Copy application files into the container
-COPY ./index.js ./serverConfig.js ./
+COPY . .
 
 # Initialize npm and install dependencies
 RUN npm init -y
-RUN npm install express
+RUN npm install express mysql2
 
 # Expose a port if your server listens on one (e.g., 3000)
 EXPOSE 3001
