@@ -1,73 +1,61 @@
 const jwt = require("jsonwebtoken");
-const { connectToDatabase } = require("../sqlConnection/sqlConnection.js");
 
-// Middleware function to validate JWT and attach user data to the request object
-const middleware = async (req, res, next) => {
-  console.log("Middleware function started.");
-  try {
-    // Verify the token (this is a placeholder, replace with actual verification logic)
-    let token = await validateAuthorization(req);
-    let parsedUserData = await parseTokenInfo(token);
-    let userData = await getUserData(parsedUserData);
-    if (!userData) {
-      console.log("❌ User not found.");
-      res.status(401).send("Unauthorized");
-      return;
+// Factory function that returns actual middleware
+const middleware = (sqlClient) => {
+  return async (req, res, next) => {
+    console.log("Middleware function started.");
+    try {
+      let token = await validateAuthorization(req);
+      let parsedUserData = await parseTokenInfo(token);
+
+      // Use the passed-in sqlClient here
+      let userData = await getUserData(parsedUserData, sqlClient);
+      if (!userData) {
+        console.log("❌ User not found.");
+        return res.status(401).send("Unauthorized");
+      }
+
+      req.body.user = userData; // Attach user data to request
+      console.log("✅ User data attached to request:", req.body.user);
+      next();
+    } catch (err) {
+      console.error("❌ Error in middleware:", err.message);
+      res.status(500).send({
+        message:err.message,
+        success: false,
+      });
     }
-    req.body.user = userData; // Attach user data to the request object
-    console.log("✅ User data attached to request:", req.user);
-    next(); // Call the next middleware or route handler
-  } catch (err) {
-    console.error("❌ Error in middleware:", err.message);
-    res.status(500).send("Internal Server Error");
-    return;
-  }
+  };
 };
 
-//validate authorization
+// Validate JWT Authorization Header
 const validateAuthorization = async (req) => {
-  let auhorization = req.headers["authorization"];
-  if (!auhorization) {
-    console.log("❌ No authorization header found.");
-    throw new Error("No authorization header found");
-  }
-  let token = auhorization.split(" ")[1];
-  if (!token) {
-    console.log("❌ No token found in authorization header.");
-    throw new Error("No token found in authorization header");
-  }
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) throw new Error("No authorization header found");
+
+  const token = authHeader.split(" ")[1];
+  if (!token) throw new Error("No token found in authorization header");
+
   return token;
 };
 
-//parse`
+// Parse and verify token
 const parseTokenInfo = async (token) => {
   try {
-    console.log("Parsing token:", token);
-    let userInfo = jwt.verify(token, "test");
-    console.log("✅ Token parsed successfully:", userInfo);
-    if (!userInfo) {
-      console.log("❌ Invalid token.");
-      throw new Error("Invalid token");
-    }
+    const userInfo = jwt.verify(token, "test");
+    if (!userInfo) throw new Error("Invalid token");
     return userInfo;
   } catch (error) {
-    console.error("❌ Error parsing token:", error.message);
     throw new Error("Invalid token");
   }
 };
 
-//get user data
-const getUserData = async (userInfo) => {
-  try {
-    let connection = await connectToDatabase();
-    let { id, username, useremail } = userInfo;
-    let sqlQuery = `SELECT * FROM users WHERE username = ? AND useremail = ?`;
-    let whereCondtions = [username, useremail];
-    let [rows] = await connection.query(sqlQuery, whereCondtions);
-    return rows[0];
-  } catch (error) {
-    console.error("❌ Error getting user data:", error.message);
-    throw new Error("Error getting user data");
-  }
+// Get user data from DB using passed sqlClient
+const getUserData = async (userInfo, sqlClient) => {
+  const { username, useremail } = userInfo;
+  const sqlQuery = `SELECT * FROM users WHERE username = ? AND useremail = ?`;
+  const [rows] = await sqlClient.query(sqlQuery, [username, useremail]);
+  return rows[0];
 };
+
 module.exports = middleware;
