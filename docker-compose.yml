@@ -12,12 +12,6 @@ services:
       - "8000:3306"
     networks:
       - my-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 30s
-      retries: 5
-      start_period: 10s
-      timeout: 10s
 
   redis:
     image: redis:latest
@@ -26,12 +20,6 @@ services:
       - "6379:6379"
     networks:
       - my-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      retries: 5
-      start_period: 10s
-      timeout: 10s
 
   load-balancer:
     build:
